@@ -1,0 +1,1168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Flying Entity Arcade - Custom Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+	#studioDrawer, #mobileStudioBtn { display: none !important; }
+	#gameCanvas {
+  background-image: url('Bbg.jpeg');
+  background-size: cover;
+  background-position: center;
+}
+        body {
+            font-family: 'Inter', sans-serif;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow: hidden;
+        }
+        .game-font {
+            font-family: 'Fredoka', sans-serif;
+        }
+        /* Custom scrollbar for studio drawer */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.6);
+            border-radius: 3px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        .arcade-btn {
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 5px 0 #1e1b4b, 0 8px 15px rgba(0,0,0,0.35);
+        }
+        .arcade-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #1e1b4b, 0 3px 6px rgba(0,0,0,0.3);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-white h-screen w-screen flex flex-col md:flex-row overflow-hidden">
+
+    <!-- MAIN GAME AREA -->
+    <div class="relative flex-1 h-full flex items-center justify-center bg-slate-900 overflow-hidden">
+        
+        <!-- Responsive Game Container (Phone/Arcade Aspect Ratio on Desktop, Full on Mobile) -->
+        <div id="gameWrapper" class="relative w-full h-full max-w-[520px] max-h-[920px] md:h-[94vh] md:rounded-3xl overflow-hidden shadow-2xl border-0 md:border-4 border-slate-700/80 bg-sky-900">
+            
+            <canvas id="gameCanvas"></canvas>
+
+            <!-- TOP HUD -->
+            <div class="absolute top-0 left-0 right-0 p-4 flex items-center justify-between pointer-events-none z-10">
+                <!-- Live Score Pill -->
+                <div class="flex items-center gap-3 bg-slate-900/75 backdrop-blur-md px-4 py-2 rounded-2xl border border-white/15 shadow-lg">
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Score</p>
+                        <p id="hudScore" class="game-font text-2xl font-bold text-amber-400 leading-none">0</p>
+                    </div>
+                    <div class="h-7 w-[1px] bg-white/15"></div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Best</p>
+                        <p id="hudBest" class="game-font text-xl font-bold text-white leading-none">0</p>
+                    </div>
+                </div>
+
+                <!-- Quick Action Buttons -->
+                <div class="flex items-center gap-2 pointer-events-auto">
+                    <button id="muteBtn" title="Toggle Audio" class="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-white border border-white/15 backdrop-blur-md transition">
+                        <svg id="soundOnIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+                        <svg id="soundOffIcon" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-rose-400 hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+                    </button>
+                    <button id="toggleStudioBtn" class="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs border border-indigo-400/40 shadow-lg transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        <span>Customize</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- START / READY OVERLAY -->
+            <div id="startScreen" class="absolute inset-0 bg-slate-950/60 backdrop-blur-[3px] flex flex-col items-center justify-center p-6 text-center z-20">
+                <div class="bg-slate-900/90 border border-white/15 rounded-3xl p-6 max-w-xs w-full shadow-2xl">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-400/30 text-amber-300 text-xs font-semibold mb-3">
+                        <span>✨ Custom Meme / Entity Flyer</span>
+                    </div>
+                    <h1 id="gameTitleDisplay" class="game-font text-3xl font-bold text-white tracking-wide mb-2 drop-shadow">FLYING HERO</h1>
+                    <p class="text-slate-300 text-xs mb-6 leading-relaxed">Tap screen, click, or press <kbd class="px-1.5 py-0.5 bg-slate-800 rounded border border-slate-600 text-amber-300 font-mono">SPACE</kbd> to fly through the obstacles!</p>
+                    
+                    <button id="startGameBtn" class="arcade-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 game-font font-bold text-xl tracking-wide mb-3">
+                        Play kottu raa BSDK 🚀
+                    </button>
+
+                    <button id="openStudioFromStart" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 font-medium text-xs border border-slate-700 transition">
+                        __.._.__...
+                    </button>
+                </div>
+            </div>
+
+            <!-- GAME OVER OVERLAY -->
+            <div id="gameOverScreen" class="absolute inset-0 bg-slate-950/75 backdrop-blur-sm hidden flex-col items-center justify-center p-6 text-center z-20">
+                <div class="bg-slate-900/95 border border-white/15 rounded-3xl p-6 max-w-xs w-full shadow-2xl transform transition-all">
+                    <div class="w-14 h-14 mx-auto mb-3 rounded-2xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-3xl">
+                        💥
+                    </div>
+                    <h2 id="gameOverTitle" class="game-font text-3xl font-bold text-rose-400 mb-1">CRASHED!</h2>
+                    <p id="crashSubtitle" class="text-xs text-slate-400 mb-5">Gravity always wins... unless you tap faster!</p>
+
+                    <div class="grid grid-cols-2 gap-3 bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 mb-5">
+                        <div>
+                            <p class="text-[11px] uppercase text-slate-400 font-semibold">Score</p>
+                            <p id="finalScore" class="game-font text-3xl font-bold text-amber-400">0</p>
+                        </div>
+                        <div class="border-l border-slate-800">
+                            <p class="text-[11px] uppercase text-slate-400 font-semibold">Best</p>
+                            <p id="finalBest" class="game-font text-3xl font-bold text-emerald-400">0</p>
+                        </div>
+                    </div>
+
+                    <button id="restartGameBtn" class="arcade-btn w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-slate-950 game-font font-bold text-xl tracking-wide mb-2.5">
+                        PLAY AGAIN ↻
+                    </button>
+                    <button id="openStudioFromOver" class="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-medium text-xs border border-slate-700 transition">
+                        Dammu untey malli aadu bey
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- CUSTOMIZATION STUDIO DRAWER (Right Sidebar on Desktop, Slide-over Modal on Mobile) -->
+    <aside id="studioDrawer" class="fixed md:static inset-y-0 right-0 z-30 w-full sm:w-96 bg-slate-900 border-l border-slate-800 flex flex-col h-full transform translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out shadow-2xl">
+        
+        <!-- Drawer Header -->
+        <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/50">
+            <div class="flex items-center gap-2.5">
+                <span class="w-8 h-8 rounded-lg bg-indigo-600/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold">🛠️</span>
+                <div>
+                    <h2 class="font-bold text-sm text-white">Game Asset & Sound Studio</h2>
+                    <p class="text-[11px] text-slate-400">Live test assets or export config</p>
+                </div>
+            </div>
+            <button id="closeStudioBtn" class="md:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white">
+                ✕
+            </button>
+        </div>
+
+        <!-- Drawer Scrollable Controls -->
+        <div class="flex-1 overflow-y-auto p-4 space-y-5 text-xs">
+
+            <!-- 1. PLAYER ENTITY CUSTOMIZATION -->
+            <div class="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-3.5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-indigo-400 uppercase tracking-wider text-[11px]">1. Flying Entity (Player)</span>
+                    <span class="text-[10px] text-slate-400">PNG / JPG / Transparent Cutout</span>
+                </div>
+
+                <!-- Upload Custom Entity -->
+                <div>
+                    <label class="block text-slate-300 mb-1.5 font-medium">Upload Player Face / Sprite:</label>
+                    <input type="file" id="playerImgInput" accept="image/*" class="block w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-600 file:text-white hover:file:bg-indigo-500 cursor-pointer bg-slate-900 rounded-lg border border-slate-800 p-1">
+                </div>
+
+                <!-- Or Image URL -->
+                <div>
+                    <label class="block text-slate-400 mb-1">Or Paste Image URL:</label>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="playerUrlInput" placeholder="https://example.com/hero.png" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white focus:outline-none focus:border-indigo-500">
+                        <button id="applyPlayerUrlBtn" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg font-semibold text-indigo-300 border border-slate-700">Load</button>
+                    </div>
+                </div>
+
+                <!-- Built-in Entity Style Presets -->
+                <div>
+                    <label class="block text-slate-400 mb-1.5">Or Pick Built-in Avatar:</label>
+                    <div class="grid grid-cols-4 gap-1.5">
+                        <button data-avatar="superstar" class="avatar-preset py-1.5 px-2 rounded-lg bg-indigo-600/30 border border-indigo-500 text-center font-medium hover:bg-indigo-600/40">😎 Hero</button>
+                        <button data-avatar="rocket" class="avatar-preset py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-center font-medium hover:bg-slate-700">🚀 Rocket</button>
+                        <button data-avatar="dragon" class="avatar-preset py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-center font-medium hover:bg-slate-700">🐉 Dragon</button>
+                        <button data-avatar="ufo" class="avatar-preset py-1.5 px-2 rounded-lg bg-slate-800 border border-slate-700 text-center font-medium hover:bg-slate-700">🛸 UFO</button>
+                    </div>
+                </div>
+
+                <!-- Entity Size & Shape -->
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                        <div class="flex justify-between text-slate-300 mb-1">
+                            <span>Entity Size</span>
+                            <span id="entitySizeVal" class="text-amber-400 font-mono">64px</span>
+                        </div>
+                        <input type="range" id="entitySizeSlider" min="40" max="100" value="64" class="w-full accent-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-slate-300 mb-1">Image Crop</label>
+                        <select id="entityClipSelect" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-white">
+                            <option value="none">Full Uncropped PNG</option>
+                            <option value="circle">Circular Badge</option>
+                            <option value="rounded">Rounded Square</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. OBSTACLE (PILLARS) CUSTOMIZATION -->
+            <div class="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-3.5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-emerald-400 uppercase tracking-wider text-[11px]">2. Obstacles / Pillars</span>
+                    <span class="text-[10px] text-slate-400">Texture or Color</span>
+                </div>
+
+                <div>
+                    <label class="block text-slate-300 mb-1.5 font-medium">Upload Obstacle Image/Texture:</label>
+                    <input type="file" id="obstacleImgInput" accept="image/*" class="block w-full text-xs text-slate-300 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-emerald-600 file:text-white hover:file:bg-emerald-500 cursor-pointer bg-slate-900 rounded-lg border border-slate-800 p-1">
+                </div>
+
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2">
+                        <input type="color" id="obstacleColorPicker" value="#10b981" class="w-8 h-8 rounded cursor-pointer bg-transparent border-0">
+                        <span class="text-slate-300">Pillar Color</span>
+                    </div>
+                    <button id="clearObstacleImgBtn" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">Use Classic Pipe Style</button>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 pt-1">
+                    <div>
+                        <div class="flex justify-between text-slate-300 mb-1">
+                            <span>Gap Height</span>
+                            <span id="gapSizeVal" class="text-emerald-400 font-mono">175px</span>
+                        </div>
+                        <input type="range" id="gapSizeSlider" min="120" max="250" value="175" class="w-full accent-emerald-500">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-slate-300 mb-1">
+                            <span>Pillar Width</span>
+                            <span id="pillarWidthVal" class="text-emerald-400 font-mono">76px</span>
+                        </div>
+                        <input type="range" id="pillarWidthSlider" min="50" max="130" value="76" class="w-full accent-emerald-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. SOUND EFFECTS & VOICEOVER STUDIO -->
+            <div class="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-3.5 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-bold text-amber-400 uppercase tracking-wider text-[11px]">3. Custom Audio & Dialogues</span>
+                    <span class="text-[10px] text-slate-400">MP3 / WAV / OGG</span>
+                </div>
+                <p class="text-[11px] text-slate-400 leading-relaxed">Upload your own meme dialogues, jump sounds, or crash sound effects (just like <span class="text-slate-200 font-medium">Flying Balaya</span>!).</p>
+
+                <!-- Jump / Flap Sound -->
+                <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-slate-200">🔊 Jump / Flap Sound</span>
+                        <button id="testJumpSoundBtn" class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30 hover:bg-amber-500/30">Test ▶</button>
+                    </div>
+                    <input type="file" id="jumpAudioInput" accept="audio/*" class="block w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:bg-slate-800 file:text-amber-300 hover:file:bg-slate-700 cursor-pointer">
+                </div>
+
+                <!-- Score Point Sound -->
+                <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-slate-200">⭐ Score / Point Sound</span>
+                        <button id="testScoreSoundBtn" class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30 hover:bg-amber-500/30">Test ▶</button>
+                    </div>
+                    <input type="file" id="scoreAudioInput" accept="audio/*" class="block w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:bg-slate-800 file:text-amber-300 hover:file:bg-slate-700 cursor-pointer">
+                </div>
+
+                <!-- Crash / Game Over Dialogue Sound -->
+                <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-slate-200">💥 Crash / Game Over Dialogue</span>
+                        <button id="testCrashSoundBtn" class="px-2 py-0.5 bg-amber-500/20 text-amber-300 rounded border border-amber-500/30 hover:bg-amber-500/30">Test ▶</button>
+                    </div>
+                    <input type="file" id="crashAudioInput" accept="audio/*" class="block w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:bg-slate-800 file:text-amber-300 hover:file:bg-slate-700 cursor-pointer">
+                </div>
+
+                <!-- Background Music Loop -->
+                <div class="bg-slate-900/90 p-2.5 rounded-xl border border-slate-800">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="font-semibold text-slate-200">🎵 Background BGM Loop</span>
+                        <span id="bgmStatus" class="text-[10px] text-slate-400">Optional</span>
+                    </div>
+                    <input type="file" id="bgmAudioInput" accept="audio/*" class="block w-full text-[11px] text-slate-400 file:mr-2 file:py-1 file:px-2.5 file:rounded file:border-0 file:bg-slate-800 file:text-amber-300 hover:file:bg-slate-700 cursor-pointer">
+                </div>
+            </div>
+
+            <!-- 4. PHYSICS & TEXT TUNING -->
+            <div class="bg-slate-950/60 border border-slate-800/90 rounded-2xl p-3.5 space-y-3">
+                <span class="font-bold text-sky-400 uppercase tracking-wider text-[11px] block">4. Game Title & Physics</span>
+                
+                <div>
+                    <label class="block text-slate-400 mb-1">Custom Game Title:</label>
+                    <input type="text" id="customTitleInput" value="FLYING BALAYA" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-2.5 py-1.5 text-white font-semibold">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <div class="flex justify-between text-slate-300 mb-1">
+                            <span>Game Speed</span>
+                            <span id="speedVal" class="text-sky-400 font-mono">3.2</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="1.8" max="6.5" step="0.2" value="3.2" class="w-full accent-sky-500">
+                    </div>
+                    <div>
+                        <div class="flex justify-between text-slate-300 mb-1">
+                            <span>Gravity</span>
+                            <span id="gravityVal" class="text-sky-400 font-mono">0.42</span>
+                        </div>
+                        <input type="range" id="gravitySlider" min="0.20" max="0.80" step="0.02" value="0.42" class="w-full accent-sky-500">
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. HOW TO HOST / VERCEL GUIDE -->
+            <div class="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-3.5 space-y-2">
+                <p class="font-bold text-indigo-300 text-xs flex items-center gap-1.5">
+                    <span>🚀 Ready to deploy like flying-balaya.vercel.app?</span>
+                </p>
+                <p class="text-[11px] text-slate-300 leading-relaxed">
+                    Look at the top of the <code class="text-amber-300">&lt;script&gt;</code> tag in this file. Replace the <code class="text-emerald-300">GAME_CONFIG</code> paths (`playerImageSrc`, `obstacleImageSrc`, `jumpSoundSrc`, `crashSoundSrc`, `bgMusicSrc`) with your own image & MP3 filenames in your folder, then drag & drop the folder onto <strong>Vercel</strong> or <strong>Netlify</strong>!
+                </p>
+            </div>
+
+        </div>
+    </aside>
+
+    <script>
+        /* ============================================================================
+         * 🛠️ 1. PERMANENT SOURCE CODE CONFIGURATION (FOR VERCEL / GITHUB HOSTING)
+         * ============================================================================
+         * When hosting your own version (like flying-balaya.vercel.app), put your
+         * images and audio files in the same folder as index.html and put their
+         * filenames right here:
+         */
+        const GAME_CONFIG = {
+            gameTitle: "Neno Butterfly",
+            crashHeading: "Mo**a G**u",
+            crashSubtitle: ":-:-:-:-:-:-:-:-:-:",
+
+            // --- Put your custom image paths or URLs here ---
+            // Example: playerImageSrc: "./balaya-head.png",
+            playerImageSrc: "hero.png",        // Leave empty to use built-in vector avatar, or put "player.png"
+            obstacleImageSrc: "pillar.png",      // Leave empty to use classic pipes, or put "obstacle.png"
+
+            // --- Put your custom sound file paths (.mp3 / .wav) here ---
+            // Example: jumpSoundSrc: "./jump-dialogue.mp3",
+            jumpSoundSrc: "jump.mp3",          // Sound played on every flap/jump
+            scoreSoundSrc: "score.mp3",         // Sound played when passing an obstacle
+            crashSoundSrc: "crash.mp3",         // Famous dialogue or sound when crashing!
+            bgMusicSrc: "bgm.mp3",            // Looping background music while flying
+
+            // --- Gameplay & Visual Settings ---
+            playerSize: 64,            // Width/Height of the flying entity in pixels
+            playerCropMode: "none",    // "none" (full transparent cutout), "circle", or "rounded"
+            obstacleWidth: 76,         // Width of top/bottom pillars
+            obstacleGap: 300,          // Vertical space between top and bottom obstacle
+            obstacleColor: "#10b981",  // Default pillar color if no obstacleImageSrc is set
+            gameSpeed: 1.8,            // Horizontal scrolling speed
+            gravity: 0.20,             // Downward pull per frame
+            jumpStrength: -8.2,        // Upward velocity impulse on tap/space
+            spawnIntervalFrames: 105   // Frames between obstacle spawns
+        };
+
+        /* ============================================================================
+         * 🔊 2. AUDIO ENGINE (Supports Custom MP3/WAV + Web Audio Synth Fallbacks)
+         * ============================================================================ */
+        class SoundManager {
+            constructor() {
+                this.ctx = null;
+                this.isMuted = false;
+
+                // HTML5 Audio objects for custom uploaded or linked audio files
+                this.customJump = GAME_CONFIG.jumpSoundSrc ? new Audio(GAME_CONFIG.jumpSoundSrc) : null;
+                this.customScore = GAME_CONFIG.scoreSoundSrc ? new Audio(GAME_CONFIG.scoreSoundSrc) : null;
+                this.customCrash = GAME_CONFIG.crashSoundSrc ? new Audio(GAME_CONFIG.crashSoundSrc) : null;
+                this.customBgm = GAME_CONFIG.bgMusicSrc ? new Audio(GAME_CONFIG.bgMusicSrc) : null;
+
+                if (this.customBgm) {
+                    this.customBgm.loop = true;
+                    this.customBgm.volume = 0.45;
+                }
+            }
+
+            initContext() {
+                if (!this.ctx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) this.ctx = new AudioCtx();
+                }
+                if (this.ctx && this.ctx.state === "suspended") {
+                    this.ctx.resume();
+                }
+            }
+
+            playJump() {
+                if (this.isMuted) return;
+                this.initContext();
+
+                if (this.customJump) {
+                    try {
+                        this.customJump.currentTime = 0;
+                        this.customJump.play().catch(() => {});
+                        return;
+                    } catch (e) {}
+                }
+
+                // Fallback Arcade Whoosh/Flap Synth
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(240, now);
+                osc.frequency.exponentialRampToValueAtTime(580, now + 0.11);
+
+                gain.gain.setValueAtTime(0.22, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.12);
+            }
+
+            playScore() {
+                if (this.isMuted) return;
+                this.initContext();
+
+                if (this.customScore) {
+                    try {
+                        this.customScore.currentTime = 0;
+                        this.customScore.play().catch(() => {});
+                        return;
+                    } catch (e) {}
+                }
+
+                // Fallback Arcade Coin Chime
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "triangle";
+                osc.frequency.setValueAtTime(587.33, now); // D5
+                osc.frequency.setValueAtTime(880, now + 0.07); // A5
+
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.25);
+            }
+
+            playCrash() {
+                if (this.isMuted) return;
+                this.initContext();
+
+                if (this.customCrash) {
+                    try {
+                        this.customCrash.currentTime = 0;
+                        this.customCrash.play().catch(() => {});
+                        return;
+                    } catch (e) {}
+                }
+
+                // Fallback Arcade Punch/Crash Synth
+                if (!this.ctx) return;
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(170, now);
+                osc.frequency.exponentialRampToValueAtTime(42, now + 0.35);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(now);
+                osc.stop(now + 0.36);
+            }
+
+            startBgm() {
+                if (this.isMuted || !this.customBgm) return;
+                this.customBgm.currentTime = 0;
+                this.customBgm.play().catch(() => {});
+            }
+
+            stopBgm() {
+                if (this.customBgm) {
+                    this.customBgm.pause();
+                }
+            }
+        }
+
+        const sound = new SoundManager();
+
+        /* ============================================================================
+         * 🎨 3. BUILT-IN SVG AVATAR GENERATORS & CUSTOM IMAGE LOADERS
+         * ============================================================================ */
+        const AVATAR_SVGS = {
+            superstar: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><defs><radialGradient id="g" cx="50%" cy="40%" r="55%"><stop offset="0%" stop-color="%23fde68a"/><stop offset="100%" stop-color="%23f59e0b"/></radialGradient></defs><circle cx="60" cy="62" r="46" fill="url(%23g)" stroke="%2378350f" stroke-width="4"/><path d="M22 45 Q60 10 98 45 Q88 22 60 22 Q32 22 22 45 Z" fill="%231e293b"/><rect x="24" y="46" width="32" height="19" rx="6" fill="%230f172a" stroke="%2338bdf8" stroke-width="3"/><rect x="64" y="46" width="32" height="19" rx="6" fill="%230f172a" stroke="%2338bdf8" stroke-width="3"/><line x1="56" y1="53" x2="64" y2="53" stroke="%2338bdf8" stroke-width="4"/><path d="M36 78 Q60 88 84 78" stroke="%231e293b" stroke-width="6" stroke-linecap="round" fill="none"/><path d="M44 87 Q60 97 76 87" stroke="%23fff" stroke-width="4" stroke-linecap="round" fill="none"/></svg>`,
+            rocket: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M18 45 L8 60 L18 75 Z" fill="%23f97316"/><path d="M28 60 Q28 28 85 38 Q112 60 85 82 Q28 92 28 60 Z" fill="%23f8fafc" stroke="%23334155" stroke-width="4"/><path d="M82 38 Q110 60 82 82 Z" fill="%23ef4444"/><circle cx="64" cy="60" r="13" fill="%2338bdf8" stroke="%231e293b" stroke-width="4"/><path d="M35 35 L20 20 L48 34 Z" fill="%23ef4444"/><path d="M35 85 L20 100 L48 86 Z" fill="%23ef4444"/></svg>`,
+            dragon: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><circle cx="58" cy="64" r="40" fill="%2310b981" stroke="%23064e3b" stroke-width="4"/><path d="M32 32 L22 10 L46 26 Z" fill="%23f59e0b" stroke="%2378350f" stroke-width="3"/><path d="M68 28 L76 8 L84 32 Z" fill="%23f59e0b" stroke="%2378350f" stroke-width="3"/><circle cx="74" cy="52" r="9" fill="%23fef08a"/><circle cx="76" cy="52" r="4" fill="%23000"/><path d="M48 82 Q75 92 95 76" stroke="%23064e3b" stroke-width="5" fill="none" stroke-linecap="round"/><path d="M95 65 Q112 58 116 68 Q108 78 95 72 Z" fill="%23ef4444"/></svg>`,
+            ufo: `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120"><path d="M32 58 Q60 18 88 58 Z" fill="%2338bdf8" fill-opacity="0.85" stroke="%230284c7" stroke-width="3"/><circle cx="60" cy="46" r="11" fill="%23a3e635"/><circle cx="56" cy="44" r="2.5" fill="%23000"/><circle cx="64" cy="44" r="2.5" fill="%23000"/><ellipse cx="60" cy="64" rx="52" ry="18" fill="%2364748b" stroke="%231e293b" stroke-width="4"/><circle cx="30" cy="64" r="5" fill="%23fde047"/><circle cx="60" cy="68" r="5" fill="%23fde047"/><circle cx="90" cy="64" r="5" fill="%23fde047"/></svg>`
+        };
+
+        const playerImage = new Image();
+        let isPlayerImageLoaded = false;
+
+        function loadPlayerSprite(src) {
+            isPlayerImageLoaded = false;
+            playerImage.onload = () => { isPlayerImageLoaded = true; };
+            playerImage.onerror = () => {
+                // Fallback to default superstar avatar if broken URL
+                playerImage.src = AVATAR_SVGS.superstar;
+            };
+            playerImage.src = src || AVATAR_SVGS.superstar;
+        }
+
+        // Initialize Player Image
+        loadPlayerSprite(GAME_CONFIG.playerImageSrc || AVATAR_SVGS.superstar);
+
+        // Obstacle Texture Image
+        const obstacleImage = new Image();
+        let isObstacleImageLoaded = false;
+        if (GAME_CONFIG.obstacleImageSrc) {
+            obstacleImage.onload = () => { isObstacleImageLoaded = true; };
+            obstacleImage.src = GAME_CONFIG.obstacleImageSrc;
+        }
+
+        /* ============================================================================
+         * 🎮 4. CORE GAME ENGINE & PHYSICS STATE
+         * ============================================================================ */
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+
+        let gameState = "START"; // "START", "PLAYING", "GAMEOVER"
+        let score = 0;
+        let highScore = Number(localStorage.getItem("flying_entity_best") || 0);
+        let frameCount = 0;
+
+        // Update HUD Best Score
+        document.getElementById("hudBest").textContent = highScore;
+        document.getElementById("gameTitleDisplay").textContent = GAME_CONFIG.gameTitle;
+
+        // Player Entity Object
+        const player = {
+            x: 110,
+            y: 260,
+            vy: 0,
+            rotation: 0,
+            trail: []
+        };
+
+        // Arrays for Obstacles, Clouds, Stars, and Floating Particles
+        let obstacles = [];
+        let particles = [];
+        let clouds = [];
+        let groundOffset = 0;
+
+        // Resize Canvas dynamically to match container
+        function resizeCanvas() {
+            const wrapper = document.getElementById("gameWrapper");
+            const rect = wrapper.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            if (gameState === "START") {
+                player.x = Math.min(120, canvas.width * 0.28);
+                player.y = canvas.height * 0.44;
+            }
+        }
+        window.addEventListener("resize", resizeCanvas);
+
+        // Initialize parallax clouds
+        function initClouds() {
+            clouds = [];
+            for (let i = 0; i < 6; i++) {
+                clouds.push({
+                    x: Math.random() * 500,
+                    y: 50 + Math.random() * 280,
+                    scale: 0.5 + Math.random() * 0.8,
+                    speed: 0.3 + Math.random() * 0.5
+                });
+            }
+        }
+
+        // Spawn a burst of particles when jumping or crashing
+        function spawnParticles(x, y, color, count = 10) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x,
+                    y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    radius: 2 + Math.random() * 4,
+                    alpha: 1,
+                    color
+                });
+            }
+        }
+
+        // Trigger Flap / Jump
+        function flap() {
+            if (gameState === "START") {
+                startGame();
+                return;
+            }
+            if (gameState !== "PLAYING") return;
+
+            player.vy = GAME_CONFIG.jumpStrength;
+            sound.playJump();
+            spawnParticles(player.x - 10, player.y + 10, "#fde047", 6);
+        }
+
+        function startGame() {
+            gameState = "PLAYING";
+            score = 0;
+            frameCount = 0;
+            obstacles = [];
+            particles = [];
+            player.x = Math.min(120, canvas.width * 0.28);
+            player.y = canvas.height * 0.42;
+            player.vy = GAME_CONFIG.jumpStrength * 0.85;
+            player.rotation = 0;
+
+            document.getElementById("hudScore").textContent = "0";
+            document.getElementById("startScreen").classList.add("hidden");
+            document.getElementById("gameOverScreen").classList.add("hidden");
+            document.getElementById("gameOverScreen").classList.remove("flex");
+
+            sound.playJump();
+            sound.startBgm();
+        }
+
+        function triggerGameOver() {
+            if (gameState === "GAMEOVER") return;
+            gameState = "GAMEOVER";
+            sound.stopBgm();
+            sound.playCrash();
+            spawnParticles(player.x, player.y, "#f43f5e", 24);
+
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem("flying_entity_best", highScore);
+            }
+
+            document.getElementById("hudBest").textContent = highScore;
+            document.getElementById("finalScore").textContent = score;
+            document.getElementById("finalBest").textContent = highScore;
+            document.getElementById("gameOverTitle").textContent = GAME_CONFIG.crashHeading;
+            document.getElementById("crashSubtitle").textContent = GAME_CONFIG.crashSubtitle;
+
+            const overEl = document.getElementById("gameOverScreen");
+            overEl.classList.remove("hidden");
+            overEl.classList.add("flex");
+        }
+
+        /* ============================================================================
+         * 🔄 5. UPDATE & COLLISION DETECTION LOOP
+         * ============================================================================ */
+        function updateGame() {
+            const groundHeight = 64;
+            const playableHeight = canvas.height - groundHeight;
+
+            // Scroll clouds gently in all states
+            clouds.forEach(c => {
+                c.x -= c.speed;
+                if (c.x < -120) {
+                    c.x = canvas.width + 80;
+                    c.y = 40 + Math.random() * (playableHeight * 0.55);
+                }
+            });
+
+            // Scroll ground while not crashed
+            if (gameState !== "GAMEOVER") {
+                groundOffset = (groundOffset + GAME_CONFIG.gameSpeed) % 48;
+            }
+
+            // Update particles
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.03;
+                if (p.alpha <= 0) particles.splice(i, 1);
+            }
+
+            // Idle hover animation on Start screen
+            if (gameState === "START") {
+                player.y = (canvas.height * 0.42) + Math.sin(Date.now() / 240) * 10;
+                player.rotation = Math.sin(Date.now() / 350) * 0.08;
+                return;
+            }
+
+            if (gameState !== "PLAYING") return;
+
+            frameCount++;
+
+            // Apply Gravity & Velocity to Player
+            player.vy += GAME_CONFIG.gravity;
+            player.y += player.vy;
+
+            // Smoothly tilt entity based on vertical speed
+            const targetRotation = Math.max(-0.45, Math.min(1.1, player.vy * 0.07));
+            player.rotation += (targetRotation - player.rotation) * 0.22;
+
+            // Spawn new Obstacle Pillars
+            if (frameCount % GAME_CONFIG.spawnIntervalFrames === 0) {
+                const minTop = 65;
+                const maxTop = Math.max(minTop + 40, playableHeight - GAME_CONFIG.obstacleGap - 90);
+                const topHeight = Math.floor(minTop + Math.random() * (maxTop - minTop));
+
+                obstacles.push({
+                    x: canvas.width + 20,
+                    topHeight: topHeight,
+                    bottomY: topHeight + GAME_CONFIG.obstacleGap,
+                    passed: false
+                });
+            }
+
+            // Forgiving hitbox radius (72% of visual sprite size so transparent edges feel fair)
+            const hitRadius = (GAME_CONFIG.playerSize * 0.36);
+
+            // Check Ceiling & Ground Collision
+            if (player.y - hitRadius <= 0) {
+                player.y = hitRadius;
+                player.vy = 0;
+            }
+            if (player.y + hitRadius >= playableHeight) {
+                player.y = playableHeight - hitRadius;
+                triggerGameOver();
+                return;
+            }
+
+            // Update & Check Obstacles
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obs = obstacles[i];
+                obs.x -= GAME_CONFIG.gameSpeed;
+
+                const obsLeft = obs.x;
+                const obsRight = obs.x + GAME_CONFIG.obstacleWidth;
+
+                // Score check
+                if (!obs.passed && obsRight < player.x - hitRadius) {
+                    obs.passed = true;
+                    score++;
+                    document.getElementById("hudScore").textContent = score;
+                    sound.playScore();
+                    spawnParticles(player.x, player.y - 20, "#34d399", 10);
+                }
+
+                // Bounding circle vs Pillar rectangle collision check
+                if (player.x + hitRadius > obsLeft && player.x - hitRadius < obsRight) {
+                    const hitTopPillar = (player.y - hitRadius) < obs.topHeight;
+                    const hitBottomPillar = (player.y + hitRadius) > obs.bottomY;
+
+                    if (hitTopPillar || hitBottomPillar) {
+                        triggerGameOver();
+                        return;
+                    }
+                }
+
+                // Remove off-screen obstacles
+                if (obsRight < -40) {
+                    obstacles.splice(i, 1);
+                }
+            }
+        }
+
+        /* ============================================================================
+         * 🖌️ 6. RENDERING PIPELINE (60FPS CANVAS DRAW)
+         * ============================================================================ */
+        function drawBackground(playableHeight) {
+            // Sky Gradient
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, playableHeight);
+            skyGrad.addColorStop(0, "#0f172a");
+            skyGrad.addColorStop(0.55, "#1e3a8a");
+            skyGrad.addColorStop(1, "#38bdf8");
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, canvas.width, playableHeight);
+
+            // Soft Fluffy Clouds
+            ctx.fillStyle = "rgba(255, 255, 255, 0.16)";
+            clouds.forEach(c => {
+                ctx.save();
+                ctx.translate(c.x, c.y);
+                ctx.scale(c.scale, c.scale);
+                ctx.beginPath();
+                ctx.arc(0, 0, 28, 0, Math.PI * 2);
+                ctx.arc(26, -6, 22, 0, Math.PI * 2);
+                ctx.arc(50, 2, 20, 0, Math.PI * 2);
+                ctx.arc(-24, 4, 18, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            // Distant City / Hills Silhouette
+            ctx.fillStyle = "rgba(15, 23, 42, 0.35)";
+            ctx.beginPath();
+            ctx.moveTo(0, playableHeight);
+            for (let x = 0; x <= canvas.width; x += 60) {
+                const h = 28 + Math.sin(x * 0.04) * 14;
+                ctx.lineTo(x, playableHeight - h);
+            }
+            ctx.lineTo(canvas.width, playableHeight);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function drawObstacles(playableHeight) {
+            const w = GAME_CONFIG.obstacleWidth;
+
+            obstacles.forEach(obs => {
+                const bottomHeight = playableHeight - obs.bottomY;
+
+                if (isObstacleImageLoaded) {
+                    // Draw Custom Uploaded Obstacle Texture
+                    ctx.save();
+                    // Top Pillar (flipped vertically so face/texture points toward gap)
+                    ctx.translate(obs.x + w / 2, obs.topHeight / 2);
+                    ctx.scale(1, -1);
+                    ctx.drawImage(obstacleImage, -w / 2, -obs.topHeight / 2, w, obs.topHeight);
+                    ctx.restore();
+
+                    // Bottom Pillar
+                    ctx.drawImage(obstacleImage, obs.x, obs.bottomY, w, bottomHeight);
+                } else {
+                    // Draw Classic 3D Shaded Arcade Pillars
+                    const baseColor = GAME_CONFIG.obstacleColor;
+
+                    // Helper for shaded pillar + lip
+                    const drawPipe = (x, y, width, height, isTop) => {
+                        ctx.save();
+                        ctx.fillStyle = baseColor;
+                        ctx.strokeStyle = "#0f172a";
+                        ctx.lineWidth = 3;
+
+                        // Main Pillar Body
+                        ctx.fillRect(x, y, width, height);
+                        ctx.strokeRect(x, y, width, height);
+
+                        // Glossy Highlight Strip
+                        ctx.fillStyle = "rgba(255,255,255,0.22)";
+                        ctx.fillRect(x + 8, y, 10, height);
+
+                        // Pillar Cap Lip
+                        const capHeight = 24;
+                        const capY = isTop ? (y + height - capHeight) : y;
+                        ctx.fillStyle = baseColor;
+                        ctx.fillRect(x - 5, capY, width + 10, capHeight);
+                        ctx.strokeRect(x - 5, capY, width + 10, capHeight);
+
+                        ctx.fillStyle = "rgba(255,255,255,0.25)";
+                        ctx.fillRect(x + 4, capY + 2, 10, capHeight - 4);
+                        ctx.restore();
+                    };
+
+                    drawPipe(obs.x, 0, w, obs.topHeight, true);
+                    drawPipe(obs.x, obs.bottomY, w, bottomHeight, false);
+                }
+            });
+        }
+
+        function drawGround(playableHeight) {
+            const groundHeight = canvas.height - playableHeight;
+
+            // Top Grass / Neon Rim
+            ctx.fillStyle = "#22c55e";
+            ctx.fillRect(0, playableHeight, canvas.width, 14);
+
+            // Diagonal Moving Stripes on Rim
+            ctx.fillStyle = "#16a34a";
+            for (let x = -48; x < canvas.width + 48; x += 24) {
+                ctx.beginPath();
+                ctx.moveTo(x - groundOffset, playableHeight);
+                ctx.lineTo(x + 12 - groundOffset, playableHeight);
+                ctx.lineTo(x + 4 - groundOffset, playableHeight + 14);
+                ctx.lineTo(x - 8 - groundOffset, playableHeight + 14);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // Earth Base
+            ctx.fillStyle = "#1e293b";
+            ctx.fillRect(0, playableHeight + 14, canvas.width, groundHeight - 14);
+
+            // Top Border Line
+            ctx.strokeStyle = "#0f172a";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, playableHeight);
+            ctx.lineTo(canvas.width, playableHeight);
+            ctx.stroke();
+        }
+
+        function drawPlayer() {
+            const size = GAME_CONFIG.playerSize;
+            const half = size / 2;
+
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            ctx.rotate(player.rotation);
+
+            // Optional Shape Clipping (Circle / Rounded / Full Cutout)
+            if (GAME_CONFIG.playerCropMode === "circle") {
+                ctx.beginPath();
+                ctx.arc(0, 0, half, 0, Math.PI * 2);
+                ctx.closePath();
+                ctx.clip();
+            } else if (GAME_CONFIG.playerCropMode === "rounded") {
+                const r = 14;
+                ctx.beginPath();
+                ctx.roundRect(-half, -half, size, size, r);
+                ctx.closePath();
+                ctx.clip();
+            }
+
+            if (isPlayerImageLoaded) {
+                ctx.drawImage(playerImage, -half, -half, size, size);
+            } else {
+                // Fallback circle while loading
+                ctx.fillStyle = "#f59e0b";
+                ctx.beginPath();
+                ctx.arc(0, 0, half, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Subtle border if cropped into circle badge
+            if (GAME_CONFIG.playerCropMode === "circle") {
+                ctx.strokeStyle = "#ffffff";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+
+            ctx.restore();
+        }
+
+        function drawParticles() {
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = Math.max(0, p.alpha);
+                ctx.fillStyle = p.color;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+        }
+
+        function gameLoop() {
+            updateGame();
+
+            const groundHeight = 64;
+            const playableHeight = canvas.height - groundHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBackground(playableHeight);
+            drawObstacles(playableHeight);
+            drawParticles();
+            drawPlayer();
+            drawGround(playableHeight);
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        /* ============================================================================
+         * 🕹️ 7. CONTROLS & CUSTOMIZATION STUDIO EVENT LISTENERS
+         * ============================================================================ */
+        // Canvas Tap / Click to Flap
+        canvas.addEventListener("pointerdown", (e) => {
+            e.preventDefault();
+            flap();
+        });
+
+        // Spacebar / Up Arrow to Flap
+        window.addEventListener("keydown", (e) => {
+            // Ignore spacebar if typing in an input box
+            if (document.activeElement && ["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement.tagName)) {
+                return;
+            }
+            if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+                e.preventDefault();
+                if (gameState === "GAMEOVER") {
+                    startGame();
+                } else {
+                    flap();
+                }
+            }
+        });
+
+        document.getElementById("startGameBtn").addEventListener("click", startGame);
+        document.getElementById("restartGameBtn").addEventListener("click", startGame);
+
+        // Mute / Unmute Button
+        document.getElementById("muteBtn").addEventListener("click", () => {
+            sound.isMuted = !sound.isMuted;
+            document.getElementById("soundOnIcon").classList.toggle("hidden", sound.isMuted);
+            document.getElementById("soundOffIcon").classList.toggle("hidden", !sound.isMuted);
+            if (sound.isMuted) sound.stopBgm();
+            else if (gameState === "PLAYING") sound.startBgm();
+        });
+
+        // Studio Drawer Toggle (Mobile & Desktop)
+        const studioDrawer = document.getElementById("studioDrawer");
+        function openStudio() {
+            studioDrawer.classList.remove("translate-x-full");
+        }
+        function closeStudio() {
+            studioDrawer.classList.add("translate-x-full");
+        }
+        document.getElementById("toggleStudioBtn").addEventListener("click", () => {
+            studioDrawer.classList.toggle("translate-x-full");
+        });
+        document.getElementById("openStudioFromStart").addEventListener("click", openStudio);
+        document.getElementById("openStudioFromOver").addEventListener("click", openStudio);
+        document.getElementById("closeStudioBtn").addEventListener("click", closeStudio);
+
+        // --- LIVE CUSTOMIZATION BINDINGS ---
+
+        // 1. Upload Custom Player Image
+        document.getElementById("playerImgInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            loadPlayerSprite(url);
+        });
+
+        // Load Player Image from URL
+        document.getElementById("applyPlayerUrlBtn").addEventListener("click", () => {
+            const url = document.getElementById("playerUrlInput").value.trim();
+            if (url) loadPlayerSprite(url);
+        });
+
+        // Built-in Avatar Presets
+        document.querySelectorAll(".avatar-preset").forEach(btn => {
+            btn.addEventListener("click", () => {
+                document.querySelectorAll(".avatar-preset").forEach(b => {
+                    b.classList.remove("bg-indigo-600/30", "border-indigo-500");
+                    b.classList.add("bg-slate-800", "border-slate-700");
+                });
+                btn.classList.remove("bg-slate-800", "border-slate-700");
+                btn.classList.add("bg-indigo-600/30", "border-indigo-500");
+
+                const key = btn.getAttribute("data-avatar");
+                loadPlayerSprite(AVATAR_SVGS[key]);
+            });
+        });
+
+        // Entity Size & Crop Mode
+        document.getElementById("entitySizeSlider").addEventListener("input", (e) => {
+            GAME_CONFIG.playerSize = Number(e.target.value);
+            document.getElementById("entitySizeVal").textContent = GAME_CONFIG.playerSize + "px";
+        });
+
+        document.getElementById("entityClipSelect").addEventListener("change", (e) => {
+            GAME_CONFIG.playerCropMode = e.target.value;
+        });
+
+        // 2. Upload Custom Obstacle Texture
+        document.getElementById("obstacleImgInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            isObstacleImageLoaded = false;
+            obstacleImage.onload = () => { isObstacleImageLoaded = true; };
+            obstacleImage.src = url;
+        });
+
+        document.getElementById("obstacleColorPicker").addEventListener("input", (e) => {
+            GAME_CONFIG.obstacleColor = e.target.value;
+            isObstacleImageLoaded = false;
+        });
+
+        document.getElementById("clearObstacleImgBtn").addEventListener("click", () => {
+            isObstacleImageLoaded = false;
+            document.getElementById("obstacleImgInput").value = "";
+        });
+
+        document.getElementById("gapSizeSlider").addEventListener("input", (e) => {
+            GAME_CONFIG.obstacleGap = Number(e.target.value);
+            document.getElementById("gapSizeVal").textContent = GAME_CONFIG.obstacleGap + "px";
+        });
+
+        document.getElementById("pillarWidthSlider").addEventListener("input", (e) => {
+            GAME_CONFIG.obstacleWidth = Number(e.target.value);
+            document.getElementById("pillarWidthVal").textContent = GAME_CONFIG.obstacleWidth + "px";
+        });
+
+        // 3. Upload Custom Audio Files (Jump, Score, Crash, BGM)
+        document.getElementById("jumpAudioInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                sound.customJump = new Audio(URL.createObjectURL(file));
+                sound.playJump();
+            }
+        });
+        document.getElementById("testJumpSoundBtn").addEventListener("click", () => sound.playJump());
+
+        document.getElementById("scoreAudioInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                sound.customScore = new Audio(URL.createObjectURL(file));
+                sound.playScore();
+            }
+        });
+        document.getElementById("testScoreSoundBtn").addEventListener("click", () => sound.playScore());
+
+        document.getElementById("crashAudioInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                sound.customCrash = new Audio(URL.createObjectURL(file));
+                sound.playCrash();
+            }
+        });
+        document.getElementById("testCrashSoundBtn").addEventListener("click", () => sound.playCrash());
+
+        document.getElementById("bgmAudioInput").addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                if (sound.customBgm) sound.customBgm.pause();
+                sound.customBgm = new Audio(URL.createObjectURL(file));
+                sound.customBgm.loop = true;
+                sound.customBgm.volume = 0.45;
+                document.getElementById("bgmStatus").textContent = "Loaded ✓";
+                if (gameState === "PLAYING") sound.startBgm();
+            }
+        });
+
+        // 4. Title & Physics Sliders
+        document.getElementById("customTitleInput").addEventListener("input", (e) => {
+            GAME_CONFIG.gameTitle = e.target.value || "FLYING HERO";
+            document.getElementById("gameTitleDisplay").textContent = GAME_CONFIG.gameTitle;
+        });
+
+        document.getElementById("speedSlider").addEventListener("input", (e) => {
+            GAME_CONFIG.gameSpeed = Number(e.target.value);
+            document.getElementById("speedVal").textContent = GAME_CONFIG.gameSpeed.toFixed(1);
+        });
+
+        document.getElementById("gravitySlider").addEventListener("input", (e) => {
+            GAME_CONFIG.gravity = Number(e.target.value);
+            document.getElementById("gravityVal").textContent = GAME_CONFIG.gravity.toFixed(2);
+        });
+
+        // Start Engine on Window Load
+        window.onload = function () {
+            resizeCanvas();
+            initClouds();
+            gameLoop();
+        };
+    </script>
+</body>
+</html>
